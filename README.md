@@ -151,4 +151,4 @@ GPLv3
 
 ## Author Information
 
-This role was created by [BLTSEC](https://github.com/CleverNamesTaken), for use with [Ludus](https://ludus.cloud/).
+This role was created by [BLTSEC](https://github.com/BLTSEC), for use with [Ludus](https://ludus.cloud/).
