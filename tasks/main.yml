@@ -1,0 +1,80 @@
+---
+# Adds a second NIC to a Ludus VM to make it dual-homed.
+# This role uses delegate_to: localhost to run Proxmox API calls
+# on the Ludus host, then configures the interface on the VM.
+
+# Step 1: Check if net1 already exists on this VM
+- name: Check if second NIC already exists
+  ansible.builtin.shell: |
+    curl -s -k -b "PVEAuthCookie={{ hostvars['localhost']['proxmox_ticket'] }}" \
+      "https://127.0.0.1:8006/api2/json/nodes/{{ hostvars['localhost']['node_name'] }}/qemu/{{ proxmox_vmid }}/config" \
+      | jq -r '.data.net1 // empty'
+  register: existing_net1
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+# Step 2: Add second NIC via Proxmox API
+- name: Add second NIC to VM for VLAN {{ ludus_dual_home_vlan }}
+  community.general.proxmox_nic:
+    api_user: "{{ hostvars['localhost']['api_user'] }}"
+    api_password: "{{ hostvars['localhost']['api_password'] }}"
+    api_host: "{{ hostvars['localhost']['api_host'] }}"
+    vmid: "{{ proxmox_vmid }}"
+    interface: net1
+    bridge: "vmbr{{ range_second_octet | int + 1000 }}"
+    tag: "{{ ludus_dual_home_vlan }}"
+    model: virtio
+  delegate_to: localhost
+  when: existing_net1.stdout | length == 0
+  register: nic_added
+  no_log: true
+
+# Step 3: Wait for hotplugged NIC to be detected by the VM
+- name: Wait for new NIC to be detected
+  ansible.builtin.pause:
+    seconds: 5
+  when: nic_added is changed
+
+# Step 4: Get the MAC address of the new NIC from Proxmox
+- name: Get MAC address of the new NIC
+  ansible.builtin.shell: |
+    curl -s -k -b "PVEAuthCookie={{ hostvars['localhost']['proxmox_ticket'] }}" \
+      "https://127.0.0.1:8006/api2/json/nodes/{{ hostvars['localhost']['node_name'] }}/qemu/{{ proxmox_vmid }}/config" \
+      | jq -r '.data.net1' | cut -d '=' -f 2 | cut -d ',' -f 1
+  register: new_nic_mac
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+# Step 5: Find the interface name on the VM by MAC address
+- name: Find interface name for new NIC
+  ansible.builtin.shell: |
+    ip -o link show | grep -i "{{ new_nic_mac.stdout | lower }}" | awk -F': ' '{print $2}' | head -1
+  register: new_interface_name
+  retries: 5
+  delay: 3
+  until: new_interface_name.stdout | length > 0
+  changed_when: false
+
+- name: Display detected interface
+  ansible.builtin.debug:
+    msg: "Dual-home interface {{ new_interface_name.stdout }} ({{ new_nic_mac.stdout }}) will be configured as 10.{{ range_second_octet }}.{{ ludus_dual_home_vlan }}.{{ ludus_dual_home_ip_last_octet }}/24"
+
+# Step 6: Configure the interface with a static IP
+- name: Configure second interface
+  ansible.builtin.blockinfile:
+    path: /etc/network/interfaces
+    marker: "# {mark} DUAL HOME INTERFACE FOR VLAN {{ ludus_dual_home_vlan }}"
+    block: |
+      auto {{ new_interface_name.stdout }}
+      iface {{ new_interface_name.stdout }} inet static
+          address 10.{{ range_second_octet }}.{{ ludus_dual_home_vlan }}.{{ ludus_dual_home_ip_last_octet }}/24
+  become: true
+  register: interface_configured
+
+# Step 7: Bring up the interface
+- name: Bring up the dual-home interface
+  ansible.builtin.shell: "ifup {{ new_interface_name.stdout }}"
+  become: true
+  when: interface_configured is changed

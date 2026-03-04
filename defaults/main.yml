@@ -1,0 +1,5 @@
+---
+# The VLAN to add as the second interface
+ludus_dual_home_vlan: 22
+# The last octet for the IP on the second VLAN (defaults to same as primary)
+ludus_dual_home_ip_last_octet: "{{ (ludus | selectattr('vm_name', 'match', inventory_hostname) | first).ip_last_octet }}"

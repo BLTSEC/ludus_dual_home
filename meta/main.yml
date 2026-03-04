@@ -1,0 +1,25 @@
+---
+dependencies: []
+
+galaxy_info:
+  role_name: ludus_dual_home
+  author: BLTSEC
+  description: Add a second NIC to make Ludus VMs dual-homed across VLANs
+  company: BLTSEC
+  license: GPLv3
+  min_ansible_version: "2.10"
+  platforms:
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+  galaxy_tags:
+    - ludus
+    - proxmox
+    - networking
+    - dual-home
+    - vlan
