@@ -143,7 +143,7 @@ The second NIC communicates **directly at Layer 2** on the target VLAN. Traffic 
 
 This is the expected and intended behavior for a dual-homed pivot lab. However, if you are using this role outside of a pivot/pentest lab context, be aware that the dual-homed VM effectively bridges two network segments.
 
-The role uses the same Proxmox API access patterns as Ludus core (PVEAuthCookie via `delegate_to: localhost`, `community.general.proxmox_nic`, same bridge naming formula). No credentials are transmitted to guest VMs.
+This role uses the same Proxmox API access patterns that Ludus core uses internally to add NICs to its own router VM (`delegate_to: localhost`, `community.general.proxmox_nic`, same bridge naming formula). No credentials are transmitted to guest VMs.
 
 ## License
 
