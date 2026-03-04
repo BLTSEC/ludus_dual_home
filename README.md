@@ -18,7 +18,7 @@ That's it. One role, one variable (`ludus_dual_home_vlan`), and your VM is on tw
 
 ## Use Cases
 
-**Pivot labs** -- Build a range where attackers must pivot through jump boxes to reach targets on a separate VLAN. The attack box can't reach the targets directly; it has to go through the dual-homed machines first.
+**Pivot labs** -- Build a range where attackers must pivot through jump boxes to reach targets on a separate VLAN. The attack box can't reach the targets directly; it has to go through the dual-homed machines first. See [PivotLab](https://github.com/BLTSEC/PivotLab) for a full working example that uses this role with 11 pivoting tools.
 
 ```
 Attacker (VLAN 20) --> Jump Box (VLAN 20 + VLAN 22) --> Targets (VLAN 22)
