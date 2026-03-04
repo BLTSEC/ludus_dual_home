@@ -143,7 +143,11 @@ The second NIC communicates **directly at Layer 2** on the target VLAN. Traffic 
 
 This is the expected and intended behavior for a dual-homed pivot lab. However, if you are using this role outside of a pivot/pentest lab context, be aware that the dual-homed VM effectively bridges two network segments.
 
-This role uses the same Proxmox API access patterns that Ludus core uses internally to add NICs to its own router VM. All API calls are local (`https://127.0.0.1:8006`) -- the role talks to the Proxmox instance running on the Ludus host itself over loopback. No outbound internet calls are made and no credentials are transmitted to guest VMs.
+### API Access
+
+This role uses the same Proxmox API access patterns that Ludus core uses internally to add NICs to its own router VM. All API calls are **local only** (`https://127.0.0.1:8006`) -- the role talks to the Proxmox instance running on the Ludus host itself over loopback. No outbound internet calls are made.
+
+Specifically, the role uses `delegate_to: localhost` to run commands on the Ludus host (not inside guest VMs). It authenticates with a time-limited `PVEAuthCookie` session ticket and Proxmox API credentials, both provided by the Ludus framework at runtime via `hostvars['localhost']`. The self-signed TLS certificate on localhost is expected and handled with `-k` (same as Ludus core). All tasks that handle API cookies or credentials have `no_log: true` set to prevent them from appearing in Ansible output. No credentials are transmitted to guest VMs.
 
 ## License
 
