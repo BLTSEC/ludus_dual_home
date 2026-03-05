@@ -48,7 +48,7 @@
   no_log: true
 
 # Step 5: Find the interface name on the VM by MAC address
-- name: Find interface name for new NIC
+- name: Find interface name for new NIC (Linux)
   ansible.builtin.shell: |
     ip -o link show | grep -i "{{ new_nic_mac.stdout | lower }}" | awk -F': ' '{print $2}' | head -1
   register: new_interface_name
@@ -56,25 +56,56 @@
   delay: 3
   until: new_interface_name.stdout | length > 0
   changed_when: false
+  when: ansible_os_family != 'Windows'
+
+- name: Find interface name for new NIC (Windows)
+  ansible.windows.win_powershell:
+    script: |
+      $mac = '{{ new_nic_mac.stdout }}'.Replace(':','-')
+      $adapter = Get-NetAdapter | Where-Object { $_.MacAddress -eq $mac }
+      $adapter.Name
+  register: new_interface_name_win
+  retries: 5
+  delay: 3
+  until: new_interface_name_win.output | length > 0
+  changed_when: false
+  when: ansible_os_family == 'Windows'
+
+- name: Set interface name fact
+  ansible.builtin.set_fact:
+    ludus_dual_home_interface: "{{ new_interface_name.stdout if ansible_os_family != 'Windows' else new_interface_name_win.output[0] }}"
 
 - name: Display detected interface
   ansible.builtin.debug:
-    msg: "Dual-home interface {{ new_interface_name.stdout }} ({{ new_nic_mac.stdout }}) will be configured as 10.{{ range_second_octet }}.{{ ludus_dual_home_vlan }}.{{ ludus_dual_home_ip_last_octet }}/24"
+    msg: "Dual-home interface {{ ludus_dual_home_interface }} ({{ new_nic_mac.stdout }}) will be configured as 10.{{ range_second_octet }}.{{ ludus_dual_home_vlan }}.{{ ludus_dual_home_ip_last_octet }}/24"
 
-# Step 6: Configure the interface with a static IP
-- name: Configure second interface
+# Step 6: Configure the interface with a static IP (Linux)
+- name: Configure second interface (Linux)
   ansible.builtin.blockinfile:
     path: /etc/network/interfaces
     marker: "# {mark} DUAL HOME INTERFACE FOR VLAN {{ ludus_dual_home_vlan }}"
     block: |
-      auto {{ new_interface_name.stdout }}
-      iface {{ new_interface_name.stdout }} inet static
+      auto {{ ludus_dual_home_interface }}
+      iface {{ ludus_dual_home_interface }} inet static
           address 10.{{ range_second_octet }}.{{ ludus_dual_home_vlan }}.{{ ludus_dual_home_ip_last_octet }}/24
   become: true
   register: interface_configured
+  when: ansible_os_family != 'Windows'
 
-# Step 7: Bring up the interface
-- name: Bring up the dual-home interface
-  ansible.builtin.shell: "ifup {{ new_interface_name.stdout }}"
+# Step 7: Bring up the interface (Linux)
+- name: Bring up the dual-home interface (Linux)
+  ansible.builtin.shell: "ifup {{ ludus_dual_home_interface }}"
   become: true
-  when: interface_configured is changed
+  when: ansible_os_family != 'Windows' and interface_configured is changed
+
+# Step 6-7: Configure and bring up the interface (Windows)
+- name: Configure second interface (Windows)
+  ansible.windows.win_powershell:
+    script: |
+      $iface = '{{ ludus_dual_home_interface }}'
+      $ip = '10.{{ range_second_octet }}.{{ ludus_dual_home_vlan }}.{{ ludus_dual_home_ip_last_octet }}'
+      $existing = Get-NetIPAddress -InterfaceAlias $iface -IPAddress $ip -ErrorAction SilentlyContinue
+      if (-not $existing) {
+        New-NetIPAddress -InterfaceAlias $iface -IPAddress $ip -PrefixLength 24
+      }
+  when: ansible_os_family == 'Windows'

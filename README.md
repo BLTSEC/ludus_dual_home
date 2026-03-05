@@ -58,7 +58,7 @@ Deploy and the VM gets two interfaces: `10.X.20.220` on VLAN 20 and `10.X.22.220
 - Ludus range server (v1.5+)
 - `community.general` Ansible collection (for `proxmox_nic` module)
 - `jq` installed on the Ludus host
-- Target VMs must be Linux (Debian/Ubuntu)
+- Target VMs must be Linux (Debian/Ubuntu) or Windows
 
 > **Note:** This role relies on variables automatically provided by the Ludus framework at runtime: `proxmox_vmid`, `range_second_octet`, `ludus` (the range config list), and `hostvars['localhost']` Proxmox API credentials. These do not need to be set manually -- Ludus injects them into the playbook context.
 
@@ -70,7 +70,7 @@ Available variables are listed below, along with default values (see `defaults/m
     ludus_dual_home_vlan: 22
 
     # The last octet for the IP on the second VLAN (defaults to same as primary interface)
-    ludus_dual_home_ip_last_octet: "{{ (ludus | selectattr('vm_name', 'match', inventory_hostname) | first).ip_last_octet }}"
+    ludus_dual_home_ip_last_octet: "{{ (ludus | selectattr('vm_name', 'equalto', inventory_hostname) | first).ip_last_octet }}"
 
 The IP address is automatically constructed as `10.<range_second_octet>.<ludus_dual_home_vlan>.<ludus_dual_home_ip_last_octet>/24`.
 
@@ -131,7 +131,7 @@ ludus range deploy -t user-defined-roles
 2. **Adds** a second virtio NIC via the Proxmox API, tagged to the specified VLAN
 3. **Waits** for the hotplugged NIC to be detected by the guest OS
 4. **Discovers** the new interface name by matching the MAC address
-5. **Configures** a static IP in `/etc/network/interfaces`
+5. **Configures** a static IP (Linux: `/etc/network/interfaces`, Windows: `New-NetIPAddress`)
 6. **Brings up** the interface
 
 ## Security Considerations
