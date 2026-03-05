@@ -17,6 +17,9 @@ galaxy_info:
       versions:
         - focal
         - jammy
+    - name: Windows
+      versions:
+        - all
   galaxy_tags:
     - ludus
     - proxmox
