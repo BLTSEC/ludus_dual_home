@@ -145,9 +145,11 @@ This is the expected and intended behavior for a dual-homed pivot lab. However, 
 
 ### API Access
 
-All API calls are **local only** (`https://127.0.0.1:8006`) -- the role talks to the Proxmox instance running on the Ludus host itself over loopback. No outbound internet calls are made. All tasks that handle API cookies or credentials have `no_log: true` set to prevent them from appearing in Ansible output.
+All API calls are **local only** (`https://127.0.0.1:8006`) -- the role talks to the Proxmox instance running on the Ludus host itself over loopback. No outbound internet calls are made. All tasks that handle API credentials have `no_log: true` set to prevent them from appearing in Ansible output.
 
 This role uses the same Proxmox API access patterns that Ludus core uses internally to add NICs to its own router VM (`delegate_to: localhost`, `community.general.proxmox_nic`, same bridge naming formula). No credentials are transmitted to guest VMs.
+
+> **Compatibility note:** Modern Ludus authenticates to Proxmox with **API tokens** (`PVEAPIToken` header / `api_token_id` + `api_token_secret`), not the older `PVEAuthCookie` ticket / `api_password`. This role uses the current token variables (`proxmox_full_token_id`, `proxmox_token_secret`, `proxmox_token_id`). If you are on a pre-token Ludus release, pin an earlier version of this role.
 
 ## License
 

@@ -6,7 +6,7 @@
 # Step 1: Check if net1 already exists on this VM
 - name: Check if second NIC already exists
   ansible.builtin.shell: |
-    curl -s -k -b "PVEAuthCookie={{ hostvars['localhost']['proxmox_ticket'] }}" \
+    curl -s -k -H "Authorization: PVEAPIToken={{ hostvars['localhost']['proxmox_full_token_id'] }}={{ hostvars['localhost']['proxmox_token_secret'] }}" \
       "https://127.0.0.1:8006/api2/json/nodes/{{ hostvars['localhost']['node_name'] }}/qemu/{{ proxmox_vmid }}/config" \
       | jq -r '.data.net1 // empty'
   register: existing_net1
@@ -18,7 +18,8 @@
 - name: Add second NIC to VM for VLAN {{ ludus_dual_home_vlan }}
   community.general.proxmox_nic:
     api_user: "{{ hostvars['localhost']['api_user'] }}"
-    api_password: "{{ hostvars['localhost']['api_password'] }}"
+    api_token_id: "{{ hostvars['localhost']['proxmox_token_id'] }}"
+    api_token_secret: "{{ hostvars['localhost']['proxmox_token_secret'] }}"
     api_host: "{{ hostvars['localhost']['api_host'] }}"
     vmid: "{{ proxmox_vmid }}"
     interface: net1
@@ -39,7 +40,7 @@
 # Step 4: Get the MAC address of the new NIC from Proxmox
 - name: Get MAC address of the new NIC
   ansible.builtin.shell: |
-    curl -s -k -b "PVEAuthCookie={{ hostvars['localhost']['proxmox_ticket'] }}" \
+    curl -s -k -H "Authorization: PVEAPIToken={{ hostvars['localhost']['proxmox_full_token_id'] }}={{ hostvars['localhost']['proxmox_token_secret'] }}" \
       "https://127.0.0.1:8006/api2/json/nodes/{{ hostvars['localhost']['node_name'] }}/qemu/{{ proxmox_vmid }}/config" \
       | jq -r '.data.net1' | cut -d '=' -f 2 | cut -d ',' -f 1
   register: new_nic_mac
